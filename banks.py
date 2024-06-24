@@ -26,7 +26,8 @@ class Banking:
         config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789'
         path_to_tesseract = r'C:\Program Files\tocr\tesseract.exe' 
         path_to_image = r'SepCaptcha.png' 
-        pytesseract.tesseract_cmd = path_to_tesseract 
+        pytesseract.tesseract_cmd = path_to_tesseract
+        counter = 0
         while True: 
             sleep(2.5) 
             screenshot = self.driver.get_screenshot_as_base64() 
@@ -59,20 +60,34 @@ class Banking:
                 enterCaptcha.send_keys(text) 
                 print("Captcha entered1")
                 sleep(4)
-                if self.state == 'tep':
+                if self.state == 'tep' or self.state == 'bp':
                     self.driver.find_element(By.XPATH, otp_button).click() 
                 else:
                     self.driver.find_element(By.ID, otp_button).click() 
                 print("Captcha entered")
-                sleep(.8) 
-                sss = self.driver.find_element(By.XPATH, err_placce) 
-                if sss.text != "لطفا اطلاعات مورد نیاز را به درستی وارد کنید" and sss.text != "کد امنیتی به درستی وارد نشده است" and sss.text != "کپچا اشتباه است": 
-                    break 
-                else: 
-                    enterCaptcha.clear() 
+                sleep(.8)
+                try:
+                    sss = self.driver.find_element(By.XPATH, err_placce)
+                    if sss.text != "لطفا اطلاعات مورد نیاز را به درستی وارد کنید" and sss.text != "کد امنیتی به درستی وارد نشده است" and sss.text != "کپچا اشتباه است": 
+                        break 
+                except NoSuchElementException:
+                    enterCaptcha.send_keys(Keys.CONTROL, 'A', Keys.BACKSPACE)
+                    print("Cleaned")
+                    enterCaptcha.clear()
         
-            refresh = self.driver.find_element(By.XPATH, refresh_button) 
-            refresh.click() 
+            refresh = self.driver.find_element(By.XPATH, refresh_button)
+            if self.state == 'bp' and counter >= 5:
+                try:
+                    sss = self.driver.find_element(By.XPATH, err_placce)
+                    if sss.text == "درخواست بیش از حد مجاز است":
+                        self.driver.find_element(By.ID, 'cancel').click()
+                        sleep(3)
+                        return False
+                except NoSuchElementException:
+                    pass
+                
+            counter += 1
+            refresh.click()
 
     def sep(self, cardNumber, cvv2, month, year):
 
@@ -174,26 +189,26 @@ class Banking:
 
     def bp(self, cardNumber, cvv2, month, year):
         #In Way
-        CardNumber = self.driver.find_element(By.ID,'card')
+        CardNumber = self.driver.find_element(By.XPATH,'//*[@id="field-0"]')
         CardNumber.send_keys(cardNumber)
-        CVV2Number = self.driver.find_element(By.ID,'cvv2')
+        CVV2Number = self.driver.find_element(By.ID,'field-1')
         CVV2Number.send_keys(cvv2)
-        Mounth = self.driver.find_element(By.ID,'month')
+        Mounth = self.driver.find_element(By.XPATH,'//*[@id="app"]/div/main/div[1]/div/div[1]/div/div/div[2]/div[1]/form/div/div[4]/div/div/div/input[1]')
         Mounth.send_keys(month)
-        Year = self.driver.find_element(By.ID,'year')
+        Year = self.driver.find_element(By.XPATH,'//*[@id="app"]/div/main/div[1]/div/div[1]/div/div/div[2]/div[1]/form/div/div[4]/div/div/div/input[2]')
         Year.send_keys(year)
         sleep(2)
-        captcha = self.driver.find_element(By.ID,'cpatchaImg')
+        captcha = self.driver.find_element(By.CLASS_NAME,'captcha-image')
         loc = captcha.location
         size = captcha.size
         left = loc['x']
         top = loc['y']
         width = size['width']
         height = size['height']
-        box = (int(left+2), int(top-2), int(left+width-4), int(top+height-8))
-        self.captcha_resolver(box, 'pincodesender', '//*[@id="toast-error-message"]', '//*[@id="captcha"]', '//*[@id="purchase-form"]/fieldset/div[3]/div/div/div/button')
-        # end captcha
-        # time.sleep(5)
+        box = (int(left+2), int(top-2), int(left+width-4), int(top+height-10))
+        result = self.captcha_resolver(box, '//*[@id="app"]/div/main/div[1]/div/div[1]/div/div/div[2]/div[1]/form/div/div[7]/div[2]/button', '//*[@id="app"]/div/main/div[1]/div/div[1]/div/div/div[1]/div/div/div', '//*[@id="field-3"]', '//*[@id="app"]/div/main/div[1]/div/div[1]/div/div/div[2]/div[1]/form/div/div[5]/div/div/div[1]/span/button')
+        if result:
+            return
         Pin2 = self.driver.find_element(By.ID,'pincode')
         secPass = input("Watch your mobile, what did u see : ")
         Pin2.send_keys(secPass)
